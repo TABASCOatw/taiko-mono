@@ -57,12 +57,8 @@ def get_proof_time_avg_second(config):
 def moving_average(ma, v, maf):
     if ma == 0:
         return v
-    else:
-        _ma = (ma * (maf - 1) + v) * 1.0 / maf
-        if _ma > 0:
-            return _ma
-        else:
-            return ma
+    _ma = (ma * (maf - 1) + v) * 1.0 / maf
+    return _ma if _ma > 0 else ma
 
 
 class Protocol(sim.Component):
@@ -116,23 +112,13 @@ class Protocol(sim.Component):
         if t_avg == 0:
             return self.fee_base
 
-        if t_avg > t_cap:
-            _avg = t_cap
-        else:
-            _avg = t_avg
-
+        _avg = min(t_avg, t_cap)
         t_grace = K_FEE_GRACE_PERIOD * _avg / 100.0
         t_max = K_FEE_MAX_PERIOD * _avg / 100.0
         a = t_last + t_grace
 
-        if t_now > a:
-            b = t_now - a
-        else:
-            b = 0
-
-        if b > t_max:
-            b = t_max
-
+        b = t_now - a if t_now > a else 0
+        b = min(b, t_max)
         t_rel = 10000 * b / t_max
 
         alpha = 10000 + (self.config.reward_multiplier - 1) * t_rel
@@ -152,10 +138,7 @@ class Protocol(sim.Component):
 
         m = self.config.max_blocks - 1 + self.config.lamda
         n = self.num_pending()
-        if is_proposal:  # fee
-            k = m - n - 1
-        else:  # reward
-            k = m - n + 1
+        k = m - n - 1 if is_proposal else m - n + 1
         return fee * (m - 1) * m / (m - n) / k
 
     def get_block_fee(self):
@@ -181,10 +164,10 @@ class Protocol(sim.Component):
     def print_me(self, st):
         st.markdown("-----")
         st.markdown("##### Protocol state")
-        st.write("last_VERIFIED_id = {}".format(self.last_VERIFIED_id))
-        st.write("num_blocks = {}".format(self.num_pending()))
-        st.write("fee_base = {}".format(self.fee_base))
-        st.write("tko_supply = {}".format(self.tko_supply))
+        st.write(f"last_VERIFIED_id = {self.last_VERIFIED_id}")
+        st.write(f"num_blocks = {self.num_pending()}")
+        st.write(f"fee_base = {self.fee_base}")
+        st.write(f"tko_supply = {self.tko_supply}")
 
     def num_pending(self):
         return len(self.blocks) - self.last_VERIFIED_id - 1
@@ -249,41 +232,39 @@ class Protocol(sim.Component):
         )
 
     def verify_block(self):
-        for i in range(0, 5):
-            if self.can_verify():
-
-                k = self.last_VERIFIED_id + 1
-
-                self.blocks[k] = self.blocks[k]._replace(status=Status.VERIFIED)
-
-                proof_time = self.blocks[k].proven_at - self.blocks[k].proposed_at
-
-                (reward, premium_reward) = self.get_proof_reward(
-                    self.blocks[k].proven_at, self.blocks[k].proposed_at
-                )
-
-                self.fee_base = moving_average(
-                    self.fee_base,
-                    reward,
-                    self.config.fee_maf,
-                )
-
-                self.avg_proof_time = moving_average(
-                    self.avg_proof_time,
-                    proof_time,
-                    self.config.time_avg_maf,
-                )
-
-                self.tko_supply += premium_reward
-                self.m_fee_base.tally(self.fee_base)
-                self.m_proof_reward.tally(premium_reward)
-                self.m_tko_supply.tally(self.tko_supply)
-                self.m_proof_time.tally(proof_time)
-
-                self.last_VERIFIED_id = k
-            else:
+        for _ in range(0, 5):
+            if not self.can_verify():
                 break
 
+            k = self.last_VERIFIED_id + 1
+
+            self.blocks[k] = self.blocks[k]._replace(status=Status.VERIFIED)
+
+            proof_time = self.blocks[k].proven_at - self.blocks[k].proposed_at
+
+            (reward, premium_reward) = self.get_proof_reward(
+                self.blocks[k].proven_at, self.blocks[k].proposed_at
+            )
+
+            self.fee_base = moving_average(
+                self.fee_base,
+                reward,
+                self.config.fee_maf,
+            )
+
+            self.avg_proof_time = moving_average(
+                self.avg_proof_time,
+                proof_time,
+                self.config.time_avg_maf,
+            )
+
+            self.tko_supply += premium_reward
+            self.m_fee_base.tally(self.fee_base)
+            self.m_proof_reward.tally(premium_reward)
+            self.m_tko_supply.tally(self.tko_supply)
+            self.m_proof_time.tally(proof_time)
+
+            self.last_VERIFIED_id = k
         self.m_pending_count.tally(self.num_pending())
 
 
@@ -336,9 +317,7 @@ def simulate(config, days):
     st.markdown("-----")
     st.markdown("##### Block & proof time and deviation settings")
     st.caption("[block_time (seconds), proof_time (minutes)]")
-    time_str = ""
-    for t in config.timing:
-        time_str += str(t._asdict().values())
+    time_str = "".join(str(t._asdict().values()) for t in config.timing)
     st.write(time_str.replace("dict_values", "  ☀️").replace("(", "").replace(")", ""))
 
     st.markdown("-----")
@@ -352,7 +331,7 @@ def simulate(config, days):
             i += 1
 
     st.markdown("-----")
-    if st.button("Simulate {} days".format(days), key="run"):
+    if st.button(f"Simulate {days} days", key="run"):
         actual_config = Config(timing=config.timing, **inputs)
 
         protocol = Protocol(config=actual_config)

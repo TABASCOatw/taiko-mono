@@ -31,7 +31,7 @@ def percentage_deviation(initial, final):
     return round(percentage_deviation, 1)
 
 def label_text():
-    return "Avg prop time:{}s    Avg. prove time:{}s    Target proof time:{}s    Deviation(target vs. avg): {}% ".format(AVG_PROP_TIME, AVG_PROOF_TIME, PROOF_TIME_TARGET, percentage_deviation(PROOF_TIME_TARGET, AVG_PROOF_TIME))
+    return f"Avg prop time:{AVG_PROP_TIME}s    Avg. prove time:{AVG_PROOF_TIME}s    Target proof time:{PROOF_TIME_TARGET}s    Deviation(target vs. avg): {percentage_deviation(PROOF_TIME_TARGET, AVG_PROOF_TIME)}% "
 
 def save_plots(x_axis, y_axis, filename, title, x_label, y_label, y_signal_label, y2_signal_label=None, y2_axis=None):
     fig = plt.figure(figsize=(10, 6))
@@ -71,79 +71,77 @@ def parse_and_plot(filename):
                 PARSER_MODE = 1
                 #print("Parsot kezdek")
                 continue
-            
+
             if PLOT_PROOF_PER_BLOCK_END_PATTERN in line:
                 data = line.rstrip().split(':')
                 LAST_BLOCK_TS = int(data[1])
-                
+
                 PARSER_MODE = 0
                 #print("Parsot fejezek")
 
                 #plt.show()
                 continue
-            
+
             if PROOF_TIME_TARGET_PATTERN in line:
                 data = line.rstrip().split(':')
                 PROOF_TIME_TARGET = int(data[1])
                 continue
-                        
+
             if AVG_PROP_TIME_PATTERN in line:
                 data = line.rstrip().split(':')
                 AVG_PROP_TIME = int(data[1])
                 continue
-                        
+
             if AVG_PROVE_TIME_PATTERN in line:
                 data = line.rstrip().split(':')
                 AVG_PROOF_TIME = int(data[1])
-                
+
 
                 continue
-            
+
             if MAIN_START_PATTERN in line:
                 PARSER_MODE = 2
                 #print("Parsot kezdek")
                 continue
-            
+
             if MAIN_END_PATTERN in line:
                 # Saving all the main plots
                 plt.title("Proposed and verified block number over time")
                 plt.xlabel("Time (s)")
                 plt.ylabel("Proposed and verified block nr")
-    
-    
-                "{}_prop_and_verified_blocks_with_time.png".format(timestamp)
-                 # Saving the first plot
+
+
+                f"{timestamp}_prop_and_verified_blocks_with_time.png"
                 x_axis = x_ax_block_nr
                 y_axis = y_ax_avg_proof_time
-                filename = "./plots/{}_proof_time_per_block.png".format(timestamp)
+                filename = f"./plots/{timestamp}_proof_time_per_block.png"
                 title = "Proof time / block"
                 x_label = "BlockId"
                 y_label = "Proof time (s)"
                 y_signal_label = ("Prooftime / block")
                 save_plots(x_axis, y_axis, filename, title, x_label, y_label, y_signal_label)
-                
-                 # Saving the first plot
+
                 x_axis = x_ax_block_nr_as_ts
                 y_axis = y_ax_all_current_prop_blks
                 y2_axis = y_ax_all_verified_blocks
-                filename = "./plots/{}_prop_and_verified_blocks_with_time.png".format(timestamp)
+                filename = f"./plots/{timestamp}_prop_and_verified_blocks_with_time.png"
                 title = "Proposed and verified block over time"
                 x_label = "Time (s)"
                 y_label = "Proposed and verified blocks"
                 y_signal_label = "Nr. of proposed blocks"
                 y2_signal_label = "Nr. of verified blocks"
                 save_plots(x_axis, y_axis, filename, title, x_label, y_label, y_signal_label, y2_signal_label, y2_axis)
-                
+
                 # Saving the first plot
                 x_axis = x_ax_block_nr_as_ts
                 y_axis = y_ax_current_basefee
-                filename = "./plots/{}_blockfee_with_time.png".format(timestamp)
+                filename = f"./plots/{timestamp}_blockfee_with_time.png"
                 title = "Base fee over time"
                 x_label = "Time (s)"
                 y_label = "Blockfee"
                 y_signal_label = ("Blockfee")
                 save_plots(x_axis, y_axis, filename, title, x_label, y_label, y_signal_label)
-                
+
                 PARSER_MODE = 0
                 continue
             if PARSER_MODE == 1:
@@ -151,7 +149,7 @@ def parse_and_plot(filename):
                 x_ax_block_nr.append(float(data[0]))
                 y_ax_avg_proof_time.append(int(data[1]))
                 continue
-            
+
             if PARSER_MODE == 2:
                 #logCount,time,lastVerifiedBlockId,numBlocks,blockFee,accProposedAt
                 data = line.rstrip().split(';')
@@ -162,17 +160,16 @@ def parse_and_plot(filename):
                 continue
                 # Parse the next lines - until 
                 # print("First plot start marker")      
-            #print(line)
-    print("Last second is: {}".format(LAST_BLOCK_TS))
-    print("Average proposal time is: {}".format(AVG_PROP_TIME))
-    print("Average proof time is: {}".format(AVG_PROOF_TIME))
-    print("Proof time target is: {}".format(PROOF_TIME_TARGET))
+                    #print(line)
+    print(f"Last second is: {LAST_BLOCK_TS}")
+    print(f"Average proposal time is: {AVG_PROP_TIME}")
+    print(f"Average proof time is: {AVG_PROOF_TIME}")
+    print(f"Proof time target is: {PROOF_TIME_TARGET}")
 
 def parse_args():
     parser=argparse.ArgumentParser(description="Parsed filename")
     parser.add_argument("file", type=str)
-    args=parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     inputs=parse_args()
